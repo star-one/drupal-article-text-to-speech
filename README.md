@@ -16,6 +16,10 @@ Requires no external services: everything runs client-side via
 `window.speechSynthesis`, so voice quality/availability depends on the
 visitor's browser and OS.
 
+This module was created by Claude Code from original lovingly handcrafted code
+that I'd created for my own lovingly handcrafted personal blog site. It can be
+seen implemented on my own LocalGovDrupal site at https://www.bigtown.star-one.org.uk/
+
 ## Compatibility
 
 Drupal 9, 10 and 11.
