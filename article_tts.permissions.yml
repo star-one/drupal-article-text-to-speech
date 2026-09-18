@@ -1,0 +1,4 @@
+administer article tts settings:
+  title: 'Administer Article Text to Speech settings'
+  description: 'Configure the article selector, content selector, placement and button labels for the text-to-speech reader.'
+  restrict access: true

@@ -1,0 +1,19 @@
+article_tts:
+  version: 1.x
+  js:
+    js/article-tts.js: {}
+  css:
+    theme:
+      css/article-tts.css: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupalSettings
+
+article_tts.admin:
+  version: 1.x
+  js:
+    js/article-tts-admin.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

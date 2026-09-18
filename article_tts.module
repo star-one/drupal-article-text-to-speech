@@ -1,0 +1,196 @@
+<?php
+
+/**
+ * @file
+ * Attaches a text-to-speech reader (with word highlighting) to <article>
+ * elements, using the browser's SpeechSynthesis API.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\NodeInterface;
+
+/**
+ * Implements hook_help().
+ */
+function article_tts_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.article_tts':
+      $output = '<p>' . \Drupal::translation()->translate('The Article Text to Speech module adds "Listen / Pause / Stop" controls to &lt;article&gt; elements on the page. When played, it reads the text aloud with the browser\'s built-in speech synthesis and highlights each word as it is spoken.') . '</p>';
+      $output .= '<p>' . \Drupal::translation()->translate('Configure which elements are treated as the readable content, and where the controls appear, on the <a href=":url">settings page</a>. Individual pages can override those defaults from their own edit form.', [':url' => \Drupal\Core\Url::fromRoute('article_tts.settings')->toString()]) . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_page_attachments().
+ */
+function article_tts_page_attachments(array &$attachments) {
+  $config = \Drupal::config('article_tts.settings');
+  $node = \Drupal::routeMatch()->getParameter('node');
+  $override = ($node instanceof NodeInterface) ? article_tts_get_node_override($node->id()) : NULL;
+
+  if ($override === 'disabled') {
+    return;
+  }
+
+  if ($override !== 'enabled') {
+    // No page-specific override (or the module doesn't recognise this
+    // node): fall back to the site-wide defaults.
+    if (!$config->get('enabled')) {
+      return;
+    }
+    if (!article_tts_content_type_allowed($config, $node)) {
+      return;
+    }
+  }
+
+  $attachments['#attached']['library'][] = 'article_tts/article_tts';
+  $attachments['#attached']['drupalSettings']['articleTts'] = [
+    'articleSelector' => $config->get('article_selector') ?: 'article',
+    'contentSelector' => $config->get('content_selector') ?: '.field--name-body, .node__content, .content',
+    'placement' => $config->get('placement') ?: 'before',
+    'labels' => [
+      'play' => $config->get('label_play') ?: '▶️ Listen',
+      'pause' => $config->get('label_pause') ?: '⏸️ Pause',
+      'stop' => $config->get('label_stop') ?: '⏹️ Stop',
+    ],
+    'voice' => [
+      'name' => $config->get('voice_name') ?: '',
+      'lang' => $config->get('voice_lang') ?: '',
+    ],
+  ];
+}
+
+/**
+ * Determines whether the site-wide content-type restriction allows the
+ * reader to attach to the current page. Has no opinion on a page-specific
+ * override - callers check that separately, first.
+ *
+ * @param \Drupal\Core\Config\ImmutableConfig $config
+ *   The article_tts.settings config object.
+ * @param \Drupal\node\NodeInterface|null $node
+ *   The node behind the current page, if any.
+ *
+ * @return bool
+ *   TRUE if the site-wide setting allows the reader to attach here.
+ */
+function article_tts_content_type_allowed(\Drupal\Core\Config\ImmutableConfig $config, $node) {
+  $content_types = array_filter((array) $config->get('content_types'));
+
+  // No restriction configured: attach on every page, node or not - this is
+  // the module's original, unrestricted behaviour.
+  if (empty($content_types)) {
+    return TRUE;
+  }
+
+  // A restriction is configured, so this only makes sense on pages backed
+  // by a node of one of the selected types.
+  if (!$node instanceof NodeInterface) {
+    return FALSE;
+  }
+
+  return in_array($node->bundle(), $content_types, TRUE);
+}
+
+/**
+ * Gets the saved per-node override, if any.
+ *
+ * @param int|string $nid
+ *   The node ID.
+ *
+ * @return string|null
+ *   'enabled', 'disabled', or NULL if this node uses the site default.
+ */
+function article_tts_get_node_override($nid) {
+  $value = \Drupal::keyValue('article_tts.node_overrides')->get($nid);
+  return in_array($value, ['enabled', 'disabled'], TRUE) ? $value : NULL;
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for node_form.
+ *
+ * Adds a per-page override for the text-to-speech reader to every content
+ * type's node edit form, in the "Advanced" sidebar alongside the other
+ * per-page settings (URL alias, authoring information, etc.).
+ */
+function article_tts_form_node_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
+  // This is an administrative override, so it's gated behind the same
+  // permission as the module's own settings page rather than being shown
+  // to every content editor.
+  if (!\Drupal::currentUser()->hasPermission('administer article tts settings')) {
+    return;
+  }
+
+  /** @var \Drupal\node\NodeInterface $node */
+  $node = $form_state->getFormObject()->getEntity();
+  $current = $node->id() ? article_tts_get_node_override($node->id()) : NULL;
+  $config = \Drupal::config('article_tts.settings');
+
+  if (!$config->get('enabled')) {
+    $default_description = t('currently off - the reader is switched off site-wide');
+  }
+  elseif (article_tts_content_type_allowed($config, $node)) {
+    $default_description = t('currently on for this content type');
+  }
+  else {
+    $default_description = t('currently off - this content type is not selected on the settings page');
+  }
+
+  $form['article_tts'] = [
+    '#type' => 'details',
+    '#title' => t('Text to speech'),
+    '#group' => 'advanced',
+    '#weight' => 35,
+    '#attributes' => ['class' => ['article-tts-node-settings']],
+  ];
+
+  $form['article_tts']['article_tts_override'] = [
+    '#type' => 'radios',
+    '#title' => t('Text-to-speech reader on this page'),
+    '#options' => [
+      '' => t('Use the site default (@status)', ['@status' => $default_description]),
+      'enabled' => t('Always show the reader on this page'),
+      'disabled' => t('Never show the reader on this page'),
+    ],
+    '#default_value' => $current ?: '',
+    '#description' => t('Overrides the content-type restriction, and the master on/off switch, on the <a href=":url">Article Text to Speech settings page</a> - for this page only.', [':url' => \Drupal\Core\Url::fromRoute('article_tts.settings')->toString()]),
+  ];
+
+  if (isset($form['actions']['submit'])) {
+    $form['actions']['submit']['#submit'][] = 'article_tts_node_form_submit';
+  }
+}
+
+/**
+ * Form submit handler: saves the per-node override alongside the node.
+ *
+ * The override isn't stored as a real entity field (so it needs no entity
+ * schema update to install), just a simple key/value lookup keyed by node
+ * ID, cleared automatically when the node is deleted.
+ */
+function article_tts_node_form_submit(array $form, FormStateInterface $form_state) {
+  /** @var \Drupal\node\NodeInterface $node */
+  $node = $form_state->getFormObject()->getEntity();
+  if (!$node || !$node->id()) {
+    return;
+  }
+
+  $value = $form_state->getValue('article_tts_override');
+  $store = \Drupal::keyValue('article_tts.node_overrides');
+
+  if (in_array($value, ['enabled', 'disabled'], TRUE)) {
+    $store->set($node->id(), $value);
+  }
+  else {
+    $store->delete($node->id());
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_delete() for node.
+ *
+ * Cleans up the saved override when its node is deleted.
+ */
+function article_tts_node_delete(NodeInterface $node) {
+  \Drupal::keyValue('article_tts.node_overrides')->delete($node->id());
+}

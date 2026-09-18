@@ -1,0 +1,37 @@
+article_tts.settings:
+  type: config_object
+  label: 'Article Text to Speech settings'
+  mapping:
+    enabled:
+      type: boolean
+      label: 'Enabled'
+    article_selector:
+      type: string
+      label: 'Article selector'
+    content_selector:
+      type: string
+      label: 'Content selector'
+    placement:
+      type: string
+      label: 'Placement'
+    content_types:
+      type: sequence
+      label: 'Content types the reader is restricted to'
+      sequence:
+        type: string
+        label: 'Content type'
+    label_play:
+      type: label
+      label: 'Play button label'
+    label_pause:
+      type: label
+      label: 'Pause button label'
+    label_stop:
+      type: label
+      label: 'Stop button label'
+    voice_name:
+      type: string
+      label: 'Default voice name'
+    voice_lang:
+      type: string
+      label: 'Default voice language'

@@ -1,0 +1,6 @@
+name: 'Article Text to Speech'
+type: module
+description: 'Adds a play/pause/stop text-to-speech reader with word-by-word highlighting inside <article> elements, using the browser Web Speech API.'
+package: Custom
+core_version_requirement: ^9 || ^10 || ^11
+configure: article_tts.settings

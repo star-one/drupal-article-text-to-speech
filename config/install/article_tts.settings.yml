@@ -1,0 +1,10 @@
+enabled: true
+article_selector: 'article'
+content_selector: '.field--name-body, .node__content, .content'
+placement: before
+content_types: {  }
+label_play: '▶️ Listen'
+label_pause: '⏸️ Pause'
+label_stop: '⏹️ Stop'
+voice_name: ''
+voice_lang: ''

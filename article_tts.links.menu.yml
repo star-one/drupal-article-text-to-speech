@@ -1,0 +1,6 @@
+article_tts.settings:
+  title: 'Article Text to Speech'
+  description: 'Configure the text-to-speech reader for articles.'
+  parent: system.admin_config_content
+  route_name: article_tts.settings
+  weight: 10

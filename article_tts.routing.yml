@@ -1,0 +1,7 @@
+article_tts.settings:
+  path: '/admin/config/content/article-tts'
+  defaults:
+    _form: '\Drupal\article_tts\Form\ArticleTtsSettingsForm'
+    _title: 'Article Text to Speech settings'
+  requirements:
+    _permission: 'administer article tts settings'
